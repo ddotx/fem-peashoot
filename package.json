@@ -7,7 +7,8 @@
 	"scripts": {
 		"check": "lerna run check --parallel",
 		"build": "lerna run build",
-		"dev": "./scripts/dev.sh",
+		"dev": "concurrently -c \"green,yellow,blue\" -n \"server,types,client\" \"pnpm --filter=server dev\" \"pnpm --filter=types dev\" \"pnpm --filter=client dev\"",
+		"dev:win": "start cmd /k \"pnpm --filter=server dev\" && start cmd /k \"pnpm --filter=types dev\" && start cmd /k \"pnpm --filter=client dev\"",
 		"test": "lerna run test",
 		"test:watch": "lerna run test:watch",
 		"lint": "lerna run lint --parallel",

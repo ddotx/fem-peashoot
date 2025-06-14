@@ -72,3 +72,17 @@ npm run format # Format code with Prettier
 
 # Legal
 (c) 2025 Mike Works, Inc. All rights reserved
+
+# Note
+```shell
+# on PowerShell
+pnpm install
+
+cd .\packages\types
+pnpm add -D typescript
+
+pnpm run build
+
+pnpm dev:win
+```
+![ER Diagram](image.png)
