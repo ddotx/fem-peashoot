@@ -5,6 +5,7 @@ import * as fs from 'fs'
 import { join } from 'path'
 import { JSONValue } from '../types/json'
 import { parse } from 'yaml'
+import z from 'zod/v4'
 
 const TEMPERATURE_DATA_FILE_PATH = join(
 	__dirname,
@@ -13,6 +14,21 @@ const TEMPERATURE_DATA_FILE_PATH = join(
 	'data',
 	'temperature-ranges.yml',
 )
+
+const LocationFileData = z.object({
+	locations: z.array(z.object({
+		name: z.string(),
+		region: z.string(),
+		country: z.string(),
+		monthlyTemperatures: z.array(z.object({
+			month: z.number(),
+			temperatureRange: z.object({
+				min: z.tuple([z.number(), z.union([z.literal('C'), z.literal('F')])]),
+				max: z.tuple([z.number(), z.union([z.literal('C'), z.literal('F')])]),
+			}),
+		})),
+	})),
+})
 
 export async function loadTemperatureData(logger: Logger) {
 	if (!fs.existsSync(TEMPERATURE_DATA_FILE_PATH)) {
@@ -25,9 +41,21 @@ export async function loadTemperatureData(logger: Logger) {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		const parsedData = parse(dataString) as JSONValue
 
-		// TODO: Parse temperature data into some model
+		const fileData = LocationFileData.parse(parsedData)
+		// console.log(JSON.stringify(fileData, null, 2))
 
-		return await Promise.resolve(null)
+		// TODO: Parse temperature data into some model
+		const locRepo = AppDataSource.getRepository(Location)
+		const locations = fileData.locations.map((locData): Promise<Location> => {
+			const loc = locRepo.create({
+				name: locData.name,
+				region: locData.region,
+				country: locData.country,
+			})
+			return locRepo.save(loc)
+		})
+
+		return await Promise.all(locations)
 	} catch (error) {
 		logger.error('Failed to validate temperature data', { error })
 		throw new Error('Invalid temperature data format', { cause: error })
