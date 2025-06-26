@@ -6,6 +6,7 @@ import { join } from 'path'
 import { JSONValue } from '../types/json'
 import { parse } from 'yaml'
 import z from 'zod/v4'
+import { MonthlyTemperatureRange } from '../entities/monthly-temperature-range'
 
 const TEMPERATURE_DATA_FILE_PATH = join(
 	__dirname,
@@ -46,7 +47,8 @@ export async function loadTemperatureData(logger: Logger) {
 
 		// TODO: Parse temperature data into some model
 		const locRepo = AppDataSource.getRepository(Location)
-		const locations = fileData.locations.map((locData): Promise<Location> => {
+		const mtRepo = AppDataSource.getRepository(MonthlyTemperatureRange)
+/* 		const locations = fileData.locations.map((locData): Promise<Location> => {
 			const loc = locRepo.create({
 				name: locData.name,
 				region: locData.region,
@@ -54,8 +56,37 @@ export async function loadTemperatureData(logger: Logger) {
 			})
 			return locRepo.save(loc)
 		})
+		return await Promise.all(locations) */
+		const locations: Location[] = []
+		for (let i = 0; i < fileData.locations.length; i++) {
+			const locData = fileData.locations[i]
+			const l = locRepo.create({
+				name: locData.name,
+				region: locData.region,
+				country: locData.country,
+			})
+			const loc = await locRepo.save(l)
+			locations.push(loc)
+			for (let monthData of locData.monthlyTemperatures) {
+				const [minValue, minUnit] = monthData.temperatureRange.min
+				const [maxValue, maxUnit] = monthData.temperatureRange.max
+				const locMt = mtRepo.create({
+					location: loc,
+					month: monthData.month - 1,
+					min: {
+						value: minValue,
+						unit: minUnit,
+					},
+					max: {
+						value: maxValue,
+						unit: maxUnit,
+					},
+				})
+				await mtRepo.save(locMt)
+			}
+		}
+		return locations
 
-		return await Promise.all(locations)
 	} catch (error) {
 		logger.error('Failed to validate temperature data', { error })
 		throw new Error('Invalid temperature data format', { cause: error })
